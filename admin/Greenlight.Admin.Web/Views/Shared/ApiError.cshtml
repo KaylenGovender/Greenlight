@@ -1,0 +1,12 @@
+@model string
+@{ ViewData["Title"] = "Something went wrong"; }
+<div class="gl-card text-center py-5" style="max-width:640px;margin:8vh auto">
+    <i class="bi bi-cloud-slash" style="font-size:2.6rem;color:var(--gl-red)"></i>
+    <h4 class="fw-bold mt-3">Couldn't load this page</h4>
+    <p class="text-muted">@Model</p>
+    <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-1"></i> Try again</button>
+        <a class="btn btn-outline-light" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+    </div>
+    <p class="small text-muted mt-4 mb-0">Is the API running? Start both with <code>admin\run.ps1</code>. Signed out? <a asp-controller="Account" asp-action="Login">Sign in again</a>.</p>
+</div>

@@ -1,0 +1,31 @@
+{
+  "name": "greenlight-functions",
+  "private": true,
+  "main": "lib/src/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test:unit": "npm run build && mocha --timeout 10000 \"lib/test/unit/**/*.test.js\"",
+    "test:rules": "npm run build && firebase emulators:exec --only firestore --project demo-greenlight \"mocha --timeout 20000 lib/test/rules/**/*.test.js\"",
+    "test:functions": "npm run build && firebase emulators:exec --only auth,firestore,functions --project demo-greenlight \"mocha --timeout 60000 lib/test/integration/**/*.test.js\"",
+    "test": "npm run test:unit && npm run test:rules && npm run test:functions",
+    "serve": "npm run build && firebase emulators:start --project demo-greenlight",
+    "deploy": "firebase deploy --only functions,firestore"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.4.0",
+    "firebase-functions": "^7.4.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.0.0",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.30.2",
+    "mocha": "^12.0.2",
+    "typescript": "^5.9.3"
+  }
+}

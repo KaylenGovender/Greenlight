@@ -1,0 +1,24 @@
+@{ ViewData["Title"] = "Danger zone"; }
+<div class="mb-4">
+    <h1 class="gl-page-title h3">Danger zone</h1>
+    <p class="gl-subtitle">For testing: reset Greenlight's data. These can't be undone, so each needs a typed confirmation.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <form class="gl-card gl-danger-card vstack gap-3 h-100" asp-action="StartFresh" method="post" data-confirm="DELETE EVERYTHING">
+            <div class="d-flex align-items-center gap-3"><span class="gl-avatar"><i class="bi bi-arrow-counterclockwise text-warning"></i></span><h5 class="mb-0">Start fresh</h5></div>
+            <p class="text-muted mb-0">Deletes every couple and group, with all their swipes, matches, plans, notifications and codes. <b class="text-white">User accounts, names and settings stay</b>, so everyone can sign in and pair up again.</p>
+            <div><label class="form-label">Type <code>DELETE EVERYTHING</code> to confirm</label><input class="form-control" data-confirm-input autocomplete="off" /></div>
+            <div><button class="btn btn-warning" type="submit" disabled><i class="bi bi-arrow-counterclockwise me-1"></i> Start fresh</button></div>
+        </form>
+    </div>
+    <div class="col-lg-6">
+        <form class="gl-card gl-danger-card vstack gap-3 h-100" asp-action="DeleteEverything" method="post" data-confirm="DELETE ALL USERS">
+            <div class="d-flex align-items-center gap-3"><span class="gl-avatar"><i class="bi bi-exclamation-octagon text-danger"></i></span><h5 class="mb-0">Delete everything, including users</h5></div>
+            <p class="text-muted mb-0">Everything in Start fresh, <b class="text-white">plus every user account</b>: sign-ins, profiles, settings and phones. Everyone except you has to register again.</p>
+            <div><label class="form-label">Type <code>DELETE ALL USERS</code> to confirm</label><input class="form-control" data-confirm-input autocomplete="off" /></div>
+            <div><button class="btn btn-danger" type="submit" disabled><i class="bi bi-trash me-1"></i> Delete everything</button></div>
+        </form>
+    </div>
+</div>

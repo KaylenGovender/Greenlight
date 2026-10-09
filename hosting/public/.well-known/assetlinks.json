@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.greenlight.app",
+      "sha256_cert_fingerprints": ["B1:6B:A6:F9:D9:35:85:67:ED:5E:9E:A9:64:0A:E6:30:04:A5:E2:AE:EA:A3:43:53:E6:CD:DF:A7:56:47:65:D4"]
+    }
+  }
+]

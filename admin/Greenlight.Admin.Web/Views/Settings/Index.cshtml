@@ -1,0 +1,309 @@
+@model SettingsViewModel
+@{
+    ViewData["Title"] = "App settings";
+    var f = Model.Form;
+    string Chk(bool b) => b ? "checked" : "";
+}
+<div class="d-flex flex-wrap align-items-end gap-3 mb-4">
+    <div>
+        <h1 class="gl-page-title h3">App settings</h1>
+        <p class="gl-subtitle">Live settings for every phone. Saved changes reach the app within seconds@(Model.UpdatedAt is null ? "." : $" · last saved {Format.Ago(Model.UpdatedAt)} by {Model.UpdatedBy}.")</p>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+        <button class="btn btn-outline-light" id="revert" disabled><i class="bi bi-arrow-counterclockwise me-1"></i> Undo changes</button>
+        <button class="btn btn-primary" id="review" disabled><i class="bi bi-cloud-upload me-1"></i> Review &amp; save <span class="badge text-bg-dark ms-1" id="changeCount">0</span></button>
+    </div>
+</div>
+
+<form id="settings" asp-action="Save" method="post">
+    <input type="hidden" name="Tab" id="tab" value="#general" />
+    <ul class="nav nav-pills mb-3 gap-1" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#general" type="button"><i class="bi bi-megaphone me-1"></i> General</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#features" type="button"><i class="bi bi-toggles me-1"></i> Features</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#defaults" type="button"><i class="bi bi-sliders2 me-1"></i> Defaults</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#content" type="button"><i class="bi bi-collection me-1"></i> Content</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#caching" type="button"><i class="bi bi-lightning-charge me-1"></i> Caching</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#versions" type="button"><i class="bi bi-phone me-1"></i> Versions</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- General: announcement + maintenance -->
+        <div class="tab-pane fade show active" id="general">
+            <div class="row g-3">
+                <div class="col-lg-7">
+                    <div class="gl-card vstack gap-3">
+                        <div class="d-flex align-items-center"><h6 class="mb-0">Announcement banner</h6>
+                            <div class="form-check form-switch ms-auto mb-0"><input class="form-check-input" type="checkbox" role="switch" name="AnnouncementEnabled" value="true" @Chk(f.AnnouncementEnabled) data-label="Announcement on" /></div></div>
+                        <p class="small text-muted mb-0">Shown at the top of the app for everyone until they dismiss it.</p>
+                        <div><label class="form-label">Message</label><textarea class="form-control" name="AnnouncementText" rows="2" maxlength="280" data-label="Announcement text" id="annText">@f.AnnouncementText</textarea>
+                            <div class="form-text"><span id="annCount">0</span>/280</div></div>
+                        <div><label class="form-label">Style</label>
+                            <select class="form-select" name="AnnouncementLevel" data-label="Announcement style" id="annLevel">
+                                <option value="info" selected="@(f.AnnouncementLevel == "info")">Info (grey)</option>
+                                <option value="success" selected="@(f.AnnouncementLevel == "success")">Good news (green)</option>
+                                <option value="warning" selected="@(f.AnnouncementLevel == "warning")">Heads up (amber)</option>
+                            </select></div>
+                    </div>
+                    <div class="gl-card vstack gap-3 mt-3 gl-danger-card">
+                        <div class="d-flex align-items-center"><h6 class="mb-0">Maintenance mode</h6>
+                            <div class="form-check form-switch ms-auto mb-0"><input class="form-check-input" type="checkbox" role="switch" name="MaintenanceEnabled" value="true" @Chk(f.MaintenanceEnabled) data-label="Maintenance mode" /></div></div>
+                        <p class="small text-muted mb-0">Everyone except admins sees a "Back soon" screen until you turn this off.</p>
+                        <div><label class="form-label">Message</label><input class="form-control" name="MaintenanceMessage" value="@f.MaintenanceMessage" maxlength="300" placeholder="Greenlight is being updated. Please check back soon." data-label="Maintenance message" /></div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="gl-card">
+                        <h6>Preview</h6>
+                        <div class="gl-phone" style="width:260px"><div class="screen" style="min-height:300px;padding-top:26px">
+                            <div id="annPreview" class="rounded-3 p-2 small mb-3"></div>
+                            <div class="skeleton mb-2" style="height:18px;width:60%"></div>
+                            <div class="skeleton mb-2" style="height:90px"></div>
+                            <div class="skeleton" style="height:90px"></div>
+                        </div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="tab-pane fade" id="features">
+            <div class="gl-card">
+                <h6>Tabs and features</h6>
+                <p class="small text-muted">Turn parts of the app off for everyone, e.g. while something is being fixed. At least one of Watch, Eat and Do must stay on.</p>
+                <div class="row g-3">
+                    @foreach (var (name, label, desc, on, icon) in new[]
+                    {
+                        ("Watch", "Watch", "Movies & series deck", f.Watch, "bi-tv"),
+                        ("Eat", "Eat", "Restaurants deck", f.Eat, "bi-cup-hot"),
+                        ("Do", "Do", "Activities deck", f.Do, "bi-signpost-2"),
+                        ("Groups", "Friend groups", "Create / join friend groups", f.Groups, "bi-people"),
+                        ("ShareCards", "Share cards", "Share images for plans and matches", f.ShareCards, "bi-share"),
+                    })
+                    {
+                        <div class="col-md-6 col-xl-4">
+                            <label class="d-flex align-items-center gap-3 p-3 rounded-4 h-100" style="background:var(--gl-zinc-high);cursor:pointer">
+                                <span class="gl-avatar"><i class="bi @icon"></i></span>
+                                <span class="flex-grow-1"><span class="fw-semibold d-block">@label</span><span class="small text-muted">@desc</span></span>
+                                <span class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" role="switch" name="@name" value="true" @Chk(on) data-label="@label" /></span>
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Defaults -->
+        <div class="tab-pane fade" id="defaults">
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="gl-card vstack gap-3">
+                        <h6 class="mb-0">Eat &amp; Do</h6>
+                        <div><label class="form-label">Distance slider steps (km)</label>
+                            <input class="form-control" name="RadiusSteps" id="steps" value="@f.RadiusSteps" data-label="Distance steps" />
+                            <div class="form-text">2 to 10 whole numbers from 1 to 50, e.g. 2, 5, 10, 20, 50.</div></div>
+                        <div><label class="form-label">Default distance</label>
+                            <select class="form-select" name="RadiusKm" id="radius" data-label="Default distance" data-value="@f.RadiusKm"></select></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="gl-card vstack gap-3">
+                        <h6 class="mb-0">Plans &amp; decks</h6>
+                        <div class="row g-3">
+                            <div class="col-6"><label class="form-label">Plan length</label>
+                                <select class="form-select" name="PlanDurationMin" data-label="Default plan length">
+                                    @foreach (var m in new[] { 60, 120, 180, 240, 360 }) { <option value="@m" selected="@(f.PlanDurationMin == m)">@(m / 60) hours</option> }
+                                </select></div>
+                            <div class="col-6"><label class="form-label">Start time</label>
+                                <select class="form-select" name="PlanStartHour" data-label="Default start time">
+                                    @for (var h = 0; h < 24; h++) { <option value="@h" selected="@(f.PlanStartHour == h)">@h.ToString("00"):00</option> }
+                                </select></div>
+                        </div>
+                        <div><label class="form-label">Round size: <span id="roundVal">@f.DeckRoundSize</span> swipes</label>
+                            <input type="range" class="form-range" name="DeckRoundSize" min="5" max="100" step="5" value="@f.DeckRoundSize" data-label="Round size" oninput="document.getElementById('roundVal').textContent=this.value" />
+                            <div class="form-text">After this many Watch swipes, partners get a "finished a round" nudge.</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="tab-pane fade" id="content">
+            <div class="row g-3">
+                <div class="col-lg-4">
+                    <div class="gl-card">
+                        <h6>Streaming services</h6>
+                        <p class="small text-muted">Switched-off services show as unavailable and are left out of the Watch deck.</p>
+                        @foreach (var s in Model.Catalog.Services)
+                        {
+                            <div class="form-check form-switch py-1">
+                                <input class="form-check-input svc-on" type="checkbox" role="switch" id="svc-@s.Key" data-key="@s.Key" @Chk(!f.DisabledServices.Contains(s.Key)) data-label="@s.Label available" />
+                                <label class="form-check-label" for="svc-@s.Key">@s.Label</label>
+                            </div>
+                        }
+                        <div id="svcHidden"></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="gl-card">
+                        <h6>Eat categories</h6>
+                        <p class="small text-muted">Unticked cuisines are hidden from filters and preferences.</p>
+                        <div class="row row-cols-2 g-1">
+                            @foreach (var c in Model.Catalog.FoodCategories)
+                            {
+                                <div class="col"><div class="form-check"><input class="form-check-input cat-on" type="checkbox" id="food-@c.Key" data-key="@c.Key" data-list="HiddenFood" @Chk(!f.HiddenFood.Contains(c.Key)) data-label="@c.Label shown" /><label class="form-check-label small" for="food-@c.Key">@c.Label</label></div></div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="gl-card">
+                        <h6>Do categories</h6>
+                        <p class="small text-muted">Unticked activities are hidden from filters and preferences.</p>
+                        @foreach (var c in Model.Catalog.ActivityCategories)
+                        {
+                            <div class="form-check"><input class="form-check-input cat-on" type="checkbox" id="act-@c.Key" data-key="@c.Key" data-list="HiddenActivity" @Chk(!f.HiddenActivity.Contains(c.Key)) data-label="@c.Label shown" /><label class="form-check-label small" for="act-@c.Key">@c.Label</label></div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div id="catHidden"></div>
+        </div>
+
+        <!-- Caching -->
+        <div class="tab-pane fade" id="caching">
+            <div class="gl-card">
+                <h6>Caching (saves API calls)</h6>
+                <p class="small text-muted">Longer caches mean fewer paid Google Places and TMDB calls; shorter means fresher data. Places photos may only be cached temporarily.</p>
+                <div class="row g-4">
+                    <div class="col-md-4"><label class="form-label">Keep images for <b id="imgVal">@f.ImageDays</b> days</label><input type="range" class="form-range" name="ImageDays" min="1" max="30" value="@f.ImageDays" data-label="Image cache days" oninput="imgVal.textContent=this.value" /></div>
+                    <div class="col-md-4"><label class="form-label">Reuse movie data for <b id="tmdbVal">@f.TmdbHours</b> hours</label><input type="range" class="form-range" name="TmdbHours" min="1" max="168" value="@f.TmdbHours" data-label="Movie data cache hours" oninput="tmdbVal.textContent=this.value" /></div>
+                    <div class="col-md-4"><label class="form-label">Reuse place searches for <b id="plVal">@f.PlacesMemoMin</b> minutes</label><input type="range" class="form-range" name="PlacesMemoMin" min="0" max="120" step="5" value="@f.PlacesMemoMin" data-label="Place search cache minutes" oninput="plVal.textContent=this.value" /></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Versions (separate form below; kept out of the settings diff) -->
+        <div class="tab-pane fade" id="versions"></div>
+    </div>
+</form>
+
+<!-- Version gate: its own form, since it's a separate action -->
+<div id="versionsCard" class="d-none">
+    <div class="gl-card" style="max-width:720px">
+        <h6>Minimum app version</h6>
+        <p class="small text-muted">Every APK build has a build number (shown in the app's About screen). Phones on older builds get an "Update required" screen and a button to email you. Admins are never blocked.</p>
+        <div class="d-flex gap-3 align-items-center mb-3">
+            <div class="gl-kpi"><div class="label">Currently blocking</div><div class="value" style="font-size:1.4rem">@(Model.MinVersionCode == 0 ? "Nothing" : $"< {Model.MinVersionCode}")</div></div>
+        </div>
+        <form asp-action="VersionGate" method="post" class="vstack gap-3" data-ask="Block every build older than the number you entered?">
+            <div class="row g-3">
+                <div class="col-md-5"><label class="form-label">Block builds older than</label><input class="form-control" type="number" min="0" name="minVersionCode" value="@Model.MinVersionCode" required /></div>
+                <div class="col-md-7"><label class="form-label">Message on the update screen</label><input class="form-control" name="message" value="@Model.Message" maxlength="300" placeholder="There's a new version. Message me for the APK." /></div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-shield-lock me-1"></i> Save version gate</button>
+            </div>
+        </form>
+        <form asp-action="VersionGate" method="post" class="mt-2" data-ask="Allow every version again?">
+            <input type="hidden" name="minVersionCode" value="0" /><input type="hidden" name="message" value="@Model.Message" />
+            <button class="btn btn-outline-light" type="submit" @(Model.MinVersionCode == 0 ? "disabled" : "")>Allow all versions</button>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title fw-bold">Review changes</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <div id="clientErrors" class="alert alert-danger d-none"></div>
+            <ul class="gl-diff list-unstyled vstack gap-2 mb-0" id="diffList"></ul>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" data-bs-dismiss="modal">Keep editing</button><button class="btn btn-primary" id="confirmSave"><i class="bi bi-cloud-upload me-1"></i> Save to all phones</button></div>
+    </div></div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+    const form = document.getElementById("settings");
+    // The version gate lives in its own form; show it inside the Versions tab.
+    document.getElementById("versions").appendChild(document.getElementById("versionsCard"));
+    document.getElementById("versionsCard").classList.remove("d-none");
+
+    // Keep the active tab across saves.
+    const tabInput = document.getElementById("tab");
+    const hash = location.hash || "#general";
+    document.querySelector(`[data-bs-target="${hash}"]`)?.click();
+    document.querySelectorAll('[data-bs-toggle="pill"]').forEach(b => b.addEventListener("shown.bs.tab", e => {
+        tabInput.value = e.target.dataset.bsTarget; history.replaceState(null, "", e.target.dataset.bsTarget);
+        document.getElementById("review").parentElement.classList.toggle("invisible", e.target.dataset.bsTarget === "#versions");
+    }));
+
+    // Distance steps drive the default-distance choices.
+    const steps = document.getElementById("steps"), radius = document.getElementById("radius");
+    const parseSteps = () => [...new Set(steps.value.split(/[\s,;]+/).map(Number).filter(n => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+    function fillRadius() {
+        const keep = radius.value || radius.dataset.value;
+        radius.innerHTML = parseSteps().map(n => `<option value="${n}" ${String(n) === String(keep) ? "selected" : ""}>${n} km</option>`).join("");
+    }
+    steps.addEventListener("input", () => { fillRadius(); refresh(); });
+    fillRadius();
+
+    // Switches for services/categories are "shown/available"; the server stores the hidden ones.
+    function syncHidden() {
+        const svc = document.getElementById("svcHidden"), cat = document.getElementById("catHidden");
+        svc.innerHTML = [...document.querySelectorAll(".svc-on")].filter(c => !c.checked).map(c => `<input type="hidden" name="DisabledServices" value="${c.dataset.key}">`).join("");
+        cat.innerHTML = [...document.querySelectorAll(".cat-on")].filter(c => !c.checked).map(c => `<input type="hidden" name="${c.dataset.list}" value="${c.dataset.key}">`).join("");
+    }
+
+    // Announcement preview + counter.
+    const annText = document.getElementById("annText"), annLevel = document.getElementById("annLevel"), prev = document.getElementById("annPreview");
+    function preview() {
+        document.getElementById("annCount").textContent = annText.value.length;
+        const on = form.AnnouncementEnabled.checked && annText.value.trim();
+        const colors = { info: ["#262B36", "#F9FAFB"], success: ["#0B3B2C", "#B7F5DC"], warning: ["#3D2A05", "#FDE3B5"] }[annLevel.value];
+        prev.style.display = on ? "block" : "none";
+        prev.style.background = colors[0]; prev.style.color = colors[1];
+        prev.textContent = annText.value.trim();
+    }
+
+    // Change tracking: compare every labelled field with its value when the page loaded.
+    const fields = [...form.querySelectorAll("[data-label]")];
+    const value = el => el.type === "checkbox" ? (el.checked ? "on" : "off") : el.value;
+    const initial = new Map(fields.map(el => [el, value(el)]));
+    function changes() { return fields.filter(el => value(el) !== initial.get(el)).map(el => ({ label: el.dataset.label, from: initial.get(el), to: value(el) })); }
+    function refresh() {
+        const n = changes().length;
+        document.getElementById("changeCount").textContent = n;
+        document.getElementById("review").disabled = n === 0;
+        document.getElementById("revert").disabled = n === 0;
+        preview();
+    }
+    form.addEventListener("input", refresh); form.addEventListener("change", refresh);
+    window.addEventListener("beforeunload", e => { if (changes().length && !form.dataset.saving) e.preventDefault(); });
+    document.getElementById("revert").addEventListener("click", () => location.reload());
+
+    function clientErrors() {
+        const errs = [], s = parseSteps(), r = Number(radius.value);
+        if (s.length < 2 || s.length > 10 || s[0] < 1 || s[s.length - 1] > 50) errs.push("Distance steps need 2 to 10 whole numbers between 1 and 50 km.");
+        else if (!s.includes(r)) errs.push("The default distance must be one of the distance steps.");
+        if (!form.Watch.checked && !form.Eat.checked && !form.Do.checked) errs.push("At least one of Watch, Eat or Do must stay on.");
+        if (form.AnnouncementEnabled.checked && !annText.value.trim()) errs.push("Write the announcement text, or turn it off.");
+        return errs;
+    }
+
+    document.getElementById("review").addEventListener("click", () => {
+        const list = changes(), errs = clientErrors();
+        document.getElementById("diffList").innerHTML = list.map(c =>
+            `<li class="p-2 rounded-3" style="background:var(--gl-zinc-high)"><span class="text-muted">${gl.esc(c.label)}</span><br><span class="text-danger text-decoration-line-through">${gl.esc(c.from || "—")}</span> <i class="bi bi-arrow-right mx-1"></i> <span class="text-success">${gl.esc(c.to || "—")}</span></li>`).join("");
+        const box = document.getElementById("clientErrors");
+        box.classList.toggle("d-none", !errs.length); box.innerHTML = errs.map(gl.esc).join("<br>");
+        document.getElementById("confirmSave").disabled = errs.length > 0;
+        new bootstrap.Modal("#reviewModal").show();
+    });
+    document.getElementById("confirmSave").addEventListener("click", () => { syncHidden(); form.dataset.saving = "1"; form.submit(); });
+
+    refresh();
+})();
+</script>
+}

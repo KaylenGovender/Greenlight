@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "API + Web",
+    "Projects": [
+      {
+        "Path": "Greenlight.Admin.Api\Greenlight.Admin.Api.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "Greenlight.Admin.Web\Greenlight.Admin.Web.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      }
+    ]
+  }
+]

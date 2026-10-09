@@ -1,0 +1,171 @@
+rules_version = '2';
+
+// Greenlight security rules.
+//
+// A "group" is either a couple (2 people) or a friend group (up to 20).
+// Privacy model. There are three states:
+//   PASS        only the swiper can ever read it
+//   INTERESTED  other members can read it while the swiper has shareInterests == true
+//   MATCH       every member can read it; only Cloud Functions (Admin SDK) create it
+//
+// Group membership, codes and users.groupIds are server-owned: Cloud Functions write them,
+// and clients can't.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+
+    function groupData(gid) { return get(/databases/$(database)/documents/groups/$(gid)).data; }
+
+    function isMember(gid) {
+      let g = groupData(gid);
+      return signedIn() && g.status == 'active' && request.auth.uid in g.memberIds;
+    }
+
+    function sharesInterests(gid, uid) {
+      return get(/databases/$(database)/documents/groups/$(gid)/members/$(uid)).data.get('shareInterests', true) == true;
+    }
+
+    // ---------- users (private to the owner) ----------
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'photoUrl', 'email', 'createdAt', 'onboarded', 'notifications', 'groupIds'])
+        && request.resource.data.get('groupIds', []).size() == 0;
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['displayName', 'photoUrl', 'email', 'onboarded', 'notifications']);
+      allow delete: if false;
+
+      match /devices/{deviceId} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // ---------- app config (minimum app version etc.): anyone may read, only the server writes ----------
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---------- codes: callable functions only ----------
+    match /pairingCodes/{code} { allow read, write: if false; }
+    match /groupCodes/{code} { allow read, write: if false; }
+
+    // ---------- groups ----------
+    match /groups/{gid} {
+      // Members may read their group in any status (so the app can notice "ended").
+      allow get: if signedIn() && request.auth.uid in resource.data.memberIds;
+      allow list, write: if false;
+
+      match /members/{uid} {
+        allow read: if isMember(gid);
+        allow update: if isMember(gid) && isSelf(uid)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['displayName', 'photoUrl', 'streamingServices', 'foodPrefs', 'activityPrefs', 'shareInterests', 'activity', 'activityAt'])
+          && (!('shareInterests' in request.resource.data) || request.resource.data.shareInterests is bool)
+          && (!('streamingServices' in request.resource.data) || request.resource.data.streamingServices is list)
+          && (!('foodPrefs' in request.resource.data) || request.resource.data.foodPrefs is list)
+          && (!('activityPrefs' in request.resource.data) || request.resource.data.activityPrefs is list);
+        allow create, delete: if false;
+      }
+
+      match /preferences/{doc} {
+        allow read, write: if isMember(gid);
+      }
+
+      // ---------- private swipes ----------
+      function validSwipe(swipeId) {
+        let d = request.resource.data;
+        return d.userId == request.auth.uid
+          && d.itemKey is string && d.itemKey.size() > 0 && d.itemKey.size() < 300
+          && swipeId == d.itemKey + '_' + request.auth.uid
+          && d.decision in ['interested', 'passed']
+          && d.keys().hasOnly(['userId', 'itemKey', 'contentId', 'mediaType', 'placeId', 'decision', 'timestamp', 'snapshot']);
+      }
+
+      // Another member's swipe is readable only if it's INTERESTED and they share interests.
+      // Clients query per member (userId == X && decision == 'interested') so this is provable.
+      function canReadSwipe() {
+        return isMember(gid) && (
+          resource.data.userId == request.auth.uid
+          || (resource.data.decision == 'interested'
+              && resource.data.userId in groupData(gid).memberIds
+              && sharesInterests(gid, resource.data.userId))
+        );
+      }
+
+      function canWriteSwipe(swipeId) {
+        return isMember(gid) && validSwipe(swipeId) && (resource == null || resource.data.userId == request.auth.uid);
+      }
+
+      match /watchSwipes/{swipeId} {
+        allow read: if canReadSwipe();
+        allow create, update: if canWriteSwipe(swipeId);
+        allow delete: if isMember(gid) && resource.data.userId == request.auth.uid;
+      }
+      match /restaurantSwipes/{swipeId} {
+        allow read: if canReadSwipe();
+        allow create, update: if canWriteSwipe(swipeId);
+        allow delete: if isMember(gid) && resource.data.userId == request.auth.uid;
+      }
+      match /activitySwipes/{swipeId} {
+        allow read: if canReadSwipe();
+        allow create, update: if canWriteSwipe(swipeId);
+        allow delete: if isMember(gid) && resource.data.userId == request.auth.uid;
+      }
+
+      // ---------- matches: server-created, visible to all members ----------
+      match /watchMatches/{id} { allow read: if isMember(gid); allow write: if false; }
+      match /restaurantMatches/{id} { allow read: if isMember(gid); allow write: if false; }
+      match /activityMatches/{id} { allow read: if isMember(gid); allow write: if false; }
+
+      // ---------- shared plans (date nights / meet ups) ----------
+      match /plans/{id} {
+        function validPlan() {
+          let d = request.resource.data;
+          return d.startAt is timestamp
+            && d.updatedBy == request.auth.uid
+            && (!('endAt' in d) || (d.endAt is timestamp && d.endAt > d.startAt))
+            && d.keys().hasOnly(['startAt', 'endAt', 'watch', 'restaurant', 'activity', 'watches', 'restaurants', 'activities',
+                                 'notes', 'location', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt', 'reminderDaySent',
+                                 'reminderHourSent', 'rsvps', 'done', 'doneAt', 'doneBy'])
+            && (!('watches' in d) || (d.watches is list && d.watches.size() <= 30))
+            && (!('restaurants' in d) || (d.restaurants is list && d.restaurants.size() <= 30))
+            && (!('activities' in d) || (d.activities is list && d.activities.size() <= 30))
+            && (!('notes' in d) || d.notes == null || (d.notes is string && d.notes.size() <= 2000))
+            && (!('rsvps' in d) || d.rsvps is map);
+        }
+        function validRsvpValue() {
+          return request.resource.data.rsvps[request.auth.uid] in ['going', 'maybe', 'not_going'];
+        }
+        // RSVP: a member changes only their own entry, and nothing else.
+        function isOwnRsvpOnly() {
+          return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rsvps'])
+            && request.resource.data.rsvps.diff(resource.data.get('rsvps', {})).affectedKeys().hasOnly([request.auth.uid])
+            && validRsvpValue();
+        }
+        allow read: if isMember(gid);
+        // "done" is only ever set by the completePlan function.
+        allow create: if isMember(gid) && validPlan() && request.resource.data.createdBy == request.auth.uid
+          && !request.resource.data.keys().hasAny(['done', 'doneAt', 'doneBy'])
+          && request.resource.data.get('rsvps', {}).keys().hasOnly([request.auth.uid]);
+        allow update: if isMember(gid) && (
+          isOwnRsvpOnly()
+          || (validPlan()
+              && request.resource.data.createdBy == resource.data.createdBy
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['done', 'doneAt', 'doneBy'])
+              && request.resource.data.get('rsvps', {}).diff(resource.data.get('rsvps', {})).affectedKeys().hasOnly([request.auth.uid]))
+        );
+        allow delete: if isMember(gid);
+      }
+
+      // ---------- notification history: each person sees their own ----------
+      match /notifications/{id} {
+        allow read: if isMember(gid) && resource.data.toUid == request.auth.uid;
+        allow write: if false;
+      }
+    }
+  }
+}

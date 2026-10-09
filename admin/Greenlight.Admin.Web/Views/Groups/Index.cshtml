@@ -1,0 +1,47 @@
+@model List<GroupResponse>
+@{ ViewData["Title"] = "Couples & groups"; }
+<div class="d-flex flex-wrap align-items-end gap-3 mb-4">
+    <div>
+        <h1 class="gl-page-title h3">Couples &amp; groups</h1>
+        <p class="gl-subtitle">@Model.Count(g => g.Type == "couple" && g.Status == "active") couples · @Model.Count(g => g.Type != "couple" && g.Status == "active") friend groups · @Model.Count(g => g.Status != "active") pending or ended</p>
+    </div>
+    <div class="ms-auto btn-group" role="group" id="typeFilter">
+        <button class="btn btn-outline-light active" data-type="">All</button>
+        <button class="btn btn-outline-light" data-type="Couple">Couples</button>
+        <button class="btn btn-outline-light" data-type="Group">Groups</button>
+    </div>
+</div>
+
+<div class="gl-card">
+    <table id="groups" class="table table-hover mb-0">
+        <thead><tr><th>Name</th><th>Type</th><th>Members</th><th>Code</th><th>Created</th><th>Status</th></tr></thead>
+        <tbody>
+        @foreach (var g in Model)
+        {
+            <tr data-href="@Url.Action("Details", new { id = g.Id })">
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="gl-avatar"><i class="bi @(g.Type == "couple" ? "bi-heart" : "bi-people")"></i></span>
+                        <div><div class="fw-semibold">@g.Title</div><div class="small text-muted text-truncate" style="max-width:320px">@string.Join(", ", g.MemberNames)</div></div>
+                    </div>
+                </td>
+                <td>@(g.Type == "couple" ? "Couple" : "Group")</td>
+                <td>@g.MemberCount</td>
+                <td>@if (g.Code is not null) { <code class="text-success">@g.Code</code> } else { <span class="text-muted">—</span> }</td>
+                <td data-order="@(g.CreatedAt?.ToUnixTimeSeconds() ?? 0)" class="small">@Format.Ago(g.CreatedAt)</td>
+                <td><span class="badge @(g.Status == "active" ? "badge-emerald" : g.Status == "pending" ? "badge-amber" : "badge-soft")">@g.Status</span></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+<script>
+    const dt = gl.table("#groups");
+    document.querySelectorAll("#typeFilter button").forEach(b => b.addEventListener("click", () => {
+        document.querySelectorAll("#typeFilter button").forEach(x => x.classList.toggle("active", x === b));
+        dt.column(1).search(b.dataset.type ? `^${b.dataset.type}$` : "", { regex: true }).draw();
+    }));
+</script>
+}

@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Greenlight mark: two cards overlapping, the front one with an emerald tick ("green light"). -->
+    <group android:rotation="-12" android:pivotX="48" android:pivotY="52">
+        <path android:fillColor="#0E7A58"
+            android:pathData="M39,31 h18 a6,6 0 0 1 6,6 v30 a6,6 0 0 1 -6,6 h-18 a6,6 0 0 1 -6,-6 v-30 a6,6 0 0 1 6,-6 z"/>
+    </group>
+    <group android:rotation="6" android:pivotX="60" android:pivotY="56">
+        <path android:fillColor="#F9FAFB"
+            android:pathData="M51,35 h18 a6,6 0 0 1 6,6 v30 a6,6 0 0 1 -6,6 h-18 a6,6 0 0 1 -6,-6 v-30 a6,6 0 0 1 6,-6 z"/>
+        <path android:strokeColor="#10B981" android:strokeWidth="5"
+            android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M52.5,56.5 L58,62 L68,49.5"/>
+    </group>
+</vector>

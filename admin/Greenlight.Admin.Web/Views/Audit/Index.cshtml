@@ -1,0 +1,42 @@
+@model AuditLogResponse
+@{
+    ViewData["Title"] = "Audit log";
+    var current = ViewData["Action"] as string;
+    var days = Model.Entries.GroupBy(e => e.At?.ToLocalTime().Date ?? DateTime.MinValue);
+}
+<div class="d-flex flex-wrap align-items-end gap-3 mb-4">
+    <div>
+        <h1 class="gl-page-title h3">Audit log</h1>
+        <p class="gl-subtitle">Every admin action, from the app and this console. Recorded by the Cloud Functions; nobody can edit it.</p>
+    </div>
+    <form class="ms-auto d-flex gap-2" method="get">
+        <select class="form-select" name="action" onchange="this.form.submit()">
+            <option value="">All actions</option>
+            @foreach (var a in Model.Actions) { <option value="@a" selected="@(a == current)">@Greenlight.Admin.Web.Models.AuditLabels.Label(a)</option> }
+        </select>
+    </form>
+</div>
+
+@if (Model.Entries.Count == 0)
+{
+    <div class="gl-card gl-empty"><i class="bi bi-clock-history"></i>No admin actions yet</div>
+}
+@foreach (var day in days)
+{
+    <h6 class="text-muted mt-3 mb-2">@(day.Key == DateTime.Today ? "Today" : day.Key == DateTime.Today.AddDays(-1) ? "Yesterday" : day.Key.ToString("dddd d MMMM yyyy"))</h6>
+    <div class="gl-card">
+        <div class="gl-timeline">
+            @foreach (var e in day)
+            {
+                var danger = e.Action.StartsWith("delete") || e.Action is "wipeData" or "impersonate";
+                <div class="item @(danger ? "danger" : "")">
+                    <div class="d-flex flex-wrap gap-2 align-items-baseline">
+                        <span class="fw-semibold">@e.ActionLabel</span>
+                        <span class="small text-muted">@e.At?.ToLocalTime().ToString("HH:mm") · @e.AdminEmail</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(e.Summary)) { <div class="small text-muted"><code class="text-secondary">@e.Summary</code></div> }
+                </div>
+            }
+        </div>
+    </div>
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Join on Greenlight</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #111318; color: #F9FAFB;
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { width: min(420px, 100% - 32px); background: #1E222B; border-radius: 24px; padding: 28px 24px; text-align: center; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  p { color: #9CA3AF; line-height: 1.5; margin: 8px 0; }
+  .code { font: 700 34px ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: 2px; color: #10B981; margin: 16px 0; }
+  a.btn { display: block; background: #10B981; color: #04110B; text-decoration: none; font-weight: 700; padding: 14px; border-radius: 14px; margin-top: 16px; }
+  .tick { width: 56px; height: 56px; border-radius: 50%; background: rgba(16,185,129,.18); display: grid; place-items: center; margin: 0 auto; color: #10B981; font-size: 28px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="tick">✓</div>
+  <h1>You're invited to Greenlight</h1>
+  <p>Swipe together on what to watch, where to eat and what to do.</p>
+  <div class="code" id="code">…</div>
+  <a class="btn" id="open" href="#">Open Greenlight</a>
+  <p id="hint">Don't have the app yet? Ask the person who invited you for it, then open this link again or enter the code above.</p>
+</main>
+<script>
+  // /join/K7M2QX → K7M-2QX (groups) or /join/ABCD1234 → ABCD-1234 (couples). Only letters and digits are used.
+  var raw = (location.pathname.split("/join/")[1] || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 8);
+  var pretty = raw.length === 8 ? raw.slice(0, 4) + "-" + raw.slice(4) : raw.length === 6 ? raw.slice(0, 3) + "-" + raw.slice(3) : raw;
+  document.getElementById("code").textContent = pretty || "No code";
+  var open = document.getElementById("open");
+  if (raw && /android/i.test(navigator.userAgent)) {
+    open.href = "intent://join/" + raw + "#Intent;scheme=greenlight;package=com.greenlight.app;end";
+  } else {
+    open.href = "greenlight://join/" + raw;
+  }
+</script>
+</body>
+</html>

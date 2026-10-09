@@ -1,0 +1,64 @@
+@model List<UserResponse>
+@{ ViewData["Title"] = "Users"; }
+<div class="d-flex flex-wrap align-items-end gap-3 mb-4">
+    <div>
+        <h1 class="gl-page-title h3">Users</h1>
+        <p class="gl-subtitle">@Model.Count accounts · @Model.Count(u => u.LastSignInAt > DateTimeOffset.UtcNow.AddDays(-7)) active this week</p>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+        <button class="btn btn-outline-light" id="export"><i class="bi bi-download me-1"></i> Export CSV</button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newUser"><i class="bi bi-person-plus me-1"></i> New user</button>
+    </div>
+</div>
+
+<div class="gl-card">
+    <table id="users" class="table table-hover mb-0">
+        <thead><tr><th>User</th><th>Sign-in</th><th>Groups</th><th>Joined</th><th>Last active</th><th>Status</th></tr></thead>
+        <tbody>
+        @foreach (var u in Model)
+        {
+            <tr data-href="@Url.Action("Details", new { id = u.Uid })">
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (!string.IsNullOrEmpty(u.PhotoUrl)) { <img class="gl-avatar" src="@u.PhotoUrl" referrerpolicy="no-referrer" alt="" /> }
+                        else { <span class="gl-avatar">@Format.Initials(u.DisplayName)</span> }
+                        <div><div class="fw-semibold">@u.DisplayName @if (u.IsAdmin) { <span class="badge badge-emerald ms-1">Admin</span> }</div><div class="small text-muted">@u.Email</div></div>
+                    </div>
+                </td>
+                <td class="small text-muted">@string.Join(", ", u.Providers.Select(p => p == "google.com" ? "Google" : p == "password" ? "Email" : p))</td>
+                <td>@u.GroupCount</td>
+                <td data-order="@(u.CreatedAt?.ToUnixTimeSeconds() ?? 0)" class="small">@Format.Ago(u.CreatedAt)</td>
+                <td data-order="@(u.LastSignInAt?.ToUnixTimeSeconds() ?? 0)" class="small">@Format.Ago(u.LastSignInAt)</td>
+                <td>@if (u.Disabled) { <span class="badge badge-red">Disabled</span> } else { <span class="badge badge-emerald">Active</span> }</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="newUser" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered"><form class="modal-content" asp-action="Create" method="post">
+        <div class="modal-header"><h5 class="modal-title fw-bold">New user</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body vstack gap-3">
+            <div><label class="form-label">Name</label><input name="displayName" class="form-control" required maxlength="60" /></div>
+            <div><label class="form-label">Email</label><input name="email" type="email" class="form-control" required /></div>
+            <div><label class="form-label">Temporary password</label><input name="password" type="password" class="form-control" required minlength="6" />
+                <div class="form-text">They sign in with "Continue with email" and can reset the password from the app.</div></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Create user</button></div>
+    </form></div>
+</div>
+
+@section Scripts {
+<script>
+    gl.table("#users");
+    document.getElementById("export").addEventListener("click", () => {
+        const rows = [["Name", "Email", "Sign-in", "Groups", "Joined", "Last active", "Status"]];
+        document.querySelectorAll("#users tbody tr").forEach(tr => {
+            const c = tr.querySelectorAll("td");
+            rows.push([c[0].querySelector(".fw-semibold").textContent.trim(), c[0].querySelector(".small").textContent.trim(), c[1].textContent.trim(), c[2].textContent.trim(), c[3].textContent.trim(), c[4].textContent.trim(), c[5].textContent.trim()]);
+        });
+        gl.exportCsv("greenlight-users.csv", rows);
+    });
+</script>
+}

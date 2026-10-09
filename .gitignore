@@ -1,0 +1,38 @@
+# Gradle / Android
+.gradle/
+build/
+/local.properties
+/keystore.properties
+*.jks
+*.keystore
+!debug.keystore.example
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Firebase / secrets
+app/google-services.json
+.firebaserc
+functions/node_modules/
+functions/lib/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.env
+
+# Firebase hosting deploy cache
+.firebase/
+
+# .NET admin console build output and IDE state
+admin/**/bin/
+admin/**/obj/
+admin/.vs/
+*.log
+*.user

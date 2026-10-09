@@ -1,0 +1,189 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var s = Model.Stats;
+    var hour = DateTime.Now.Hour;
+    var greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    var first = (User.Identity?.Name ?? "").Split(' ')[0];
+}
+<div class="d-flex flex-wrap align-items-end gap-3 mb-4">
+    <div>
+        <h1 class="gl-page-title h3">@greeting, @first</h1>
+        <p class="gl-subtitle">Here's how Greenlight is doing. Updated @Format.Ago(s.GeneratedAt).</p>
+    </div>
+    <a class="btn btn-outline-light ms-auto" asp-action="Index" asp-route-refresh="true"><i class="bi bi-arrow-clockwise me-1"></i> Refresh</a>
+</div>
+
+@{ var access = Model.Access; }
+<div class="gl-card mb-3 gl-access">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+        <div class="icon-tile"><i class="bi bi-shield-lock"></i></div>
+        <div class="me-auto">
+            <h6 class="mb-1">Beta access
+                @if (access?.Pending > 0) { <span class="badge rounded-pill text-bg-warning ms-1">@access.Pending waiting</span> }
+            </h6>
+            <div class="small text-muted">
+                @if (access is null) { <text>Couldn't load beta access. Refresh to try again.</text> }
+                else if (access.RequireApproval) { <text>On since @Format.Ago(access.EnabledAt). New sign-ups wait for your approval; people who signed up earlier keep access.</text> }
+                else { <text>Off: anyone with the app can sign up and use it. Turn it on to stop a shared APK from letting strangers in.</text> }
+            </div>
+        </div>
+        @if (access is not null)
+        {
+            <form method="post" asp-action="AccessMode" class="m-0">
+                <input type="hidden" name="requireApproval" value="@(access.RequireApproval ? "false" : "true")" />
+                <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="requireApproval" @(access.RequireApproval ? "checked" : "")
+                           onchange="this.form.requestSubmit()" style="width:2.6em;height:1.4em" />
+                    <label class="form-check-label fw-semibold" for="requireApproval">Approval required</label>
+                </div>
+            </form>
+        }
+    </div>
+
+    @if (access is not null && access.Requests.Count > 0)
+    {
+        <div class="list-group list-group-flush mt-3">
+            @foreach (var r in access.Requests)
+            {
+                <div class="list-group-item bg-transparent d-flex flex-wrap align-items-center gap-3 px-0">
+                    @if (!string.IsNullOrEmpty(r.PhotoUrl)) { <img class="gl-avatar" src="@r.PhotoUrl" referrerpolicy="no-referrer" alt="" /> }
+                    else { <span class="gl-avatar">@Format.Initials(r.DisplayName)</span> }
+                    <div class="me-auto">
+                        <div class="fw-semibold">@r.DisplayName
+                            @if (r.Status == "denied") { <span class="badge text-bg-secondary ms-1">Denied</span> }
+                        </div>
+                        <div class="small text-muted">@r.Email · asked @Format.Ago(r.RequestedAt)</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form method="post" asp-action="Access" class="m-0">
+                            <input type="hidden" name="uid" value="@r.Uid" /><input type="hidden" name="status" value="approved" />
+                            <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Approve</button>
+                        </form>
+                        @if (r.Status != "denied")
+                        {
+                            <form method="post" asp-action="Access" class="m-0" data-ask="Deny @r.DisplayName? They'll see that their request wasn't approved.">
+                                <input type="hidden" name="uid" value="@r.Uid" /><input type="hidden" name="status" value="denied" />
+                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg me-1"></i>Deny</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (access?.RequireApproval == true)
+    {
+        <div class="small text-muted mt-3"><i class="bi bi-check2-circle me-1"></i>No one is waiting.</div>
+    }
+</div>
+
+<div class="row g-3 mb-3">
+    @{
+        var kpis = new[]
+        {
+            ("bi-people", "Users", s.Users.ToString(), $"{s.ActiveUsers7} active this week", ""),
+            ("bi-activity", "Active (30 days)", s.ActiveUsers30.ToString(), s.Users == 0 ? "" : $"{(int)Math.Round(100.0 * s.ActiveUsers30 / s.Users)}% of all users", ""),
+            ("bi-heart", "Couples", s.Couples.ToString(), $"{s.FriendGroups} friend groups", ""),
+            ("bi-stars", "Matches", s.MatchesTotal.ToString(), $"{s.SwipesLast7Days} swipes this week", ""),
+            ("bi-calendar-heart", "Upcoming plans", s.PlansUpcoming.ToString(), $"{s.PlansPast} done", "amber"),
+            ("bi-person-slash", "Disabled", s.DisabledUsers.ToString(), $"{s.PendingOrEndedGroups} ended / pending groups", "amber"),
+        };
+    }
+    @foreach (var (icon, label, value, delta, tone) in kpis)
+    {
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="gl-card gl-kpi h-100 @tone">
+                <div class="icon"><i class="bi @icon"></i></div>
+                <div class="value">@value</div>
+                <div class="label">@label</div>
+                <div class="delta">@delta</div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="gl-card h-100">
+            <div class="d-flex align-items-center mb-3"><h6 class="mb-0">Matches per day</h6><span class="ms-auto small text-muted">Last 30 days</span></div>
+            <canvas id="matchesChart" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="gl-card h-100">
+            <div class="d-flex align-items-center mb-3"><h6 class="mb-0">Matches by category</h6></div>
+            @if (s.MatchesTotal == 0)
+            {
+                <div class="gl-empty"><i class="bi bi-pie-chart"></i>No matches yet</div>
+            }
+            else
+            {
+                <canvas id="kindChart" height="210"></canvas>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="gl-card h-100">
+            <div class="d-flex align-items-center mb-3"><h6 class="mb-0">New users per day</h6><span class="ms-auto small text-muted">Last 30 days</span></div>
+            <canvas id="usersChart" height="140"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="gl-card h-100">
+            <div class="d-flex align-items-center mb-3"><h6 class="mb-0">Recent admin activity</h6><a class="ms-auto small" asp-controller="Audit" asp-action="Index">View all</a></div>
+            @if (Model.Recent.Count == 0)
+            {
+                <div class="gl-empty"><i class="bi bi-clock-history"></i>Nothing yet</div>
+            }
+            else
+            {
+                <div class="gl-timeline">
+                    @foreach (var e in Model.Recent)
+                    {
+                        var danger = e.Action.StartsWith("delete") || e.Action == "wipeData";
+                        <div class="item @(danger ? "danger" : "")">
+                            <div class="fw-semibold">@e.ActionLabel</div>
+                            <div class="small text-muted">@e.AdminEmail · @Format.Ago(e.At)</div>
+                            @if (!string.IsNullOrWhiteSpace(e.Summary)) { <div class="small text-muted text-truncate">@e.Summary</div> }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script>
+    Chart.defaults.color = "#9CA3AF";
+    Chart.defaults.borderColor = "rgba(255,255,255,.06)";
+    Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+    const days = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(s.Days.Select(d => DateTime.Parse(d).ToString("d MMM"))));
+    const grid = { grid: { display: false } };
+    new Chart(document.getElementById("matchesChart"), {
+        type: "bar",
+        data: { labels: days, datasets: [
+            { label: "Watch", data: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(s.MatchesWatchPerDay)), backgroundColor: "#10B981", borderRadius: 4, stack: "m" },
+            { label: "Eat", data: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(s.MatchesEatPerDay)), backgroundColor: "#F59E0B", borderRadius: 4, stack: "m" },
+            { label: "Do", data: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(s.MatchesDoPerDay)), backgroundColor: "#60A5FA", borderRadius: 4, stack: "m" },
+        ]},
+        options: { plugins: { legend: { position: "bottom", labels: { boxWidth: 10, usePointStyle: true } } }, scales: { x: { ...grid, stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } },
+    });
+    new Chart(document.getElementById("usersChart"), {
+        type: "line",
+        data: { labels: days, datasets: [{ label: "New users", data: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(s.NewUsersPerDay)), borderColor: "#00E599", backgroundColor: "rgba(0,229,153,.12)", fill: true, tension: .35, pointRadius: 0 }] },
+        options: { plugins: { legend: { display: false } }, scales: { x: grid, y: { beginAtZero: true, ticks: { precision: 0 } } } },
+    });
+    const kind = document.getElementById("kindChart");
+    if (kind) new Chart(kind, {
+        type: "doughnut",
+        data: { labels: ["Watch", "Eat", "Do"], datasets: [{ data: [@s.MatchesWatch, @s.MatchesEat, @s.MatchesDo], backgroundColor: ["#10B981", "#F59E0B", "#60A5FA"], borderWidth: 0 }] },
+        options: { cutout: "68%", plugins: { legend: { position: "bottom", labels: { usePointStyle: true } } } },
+    });
+</script>
+}

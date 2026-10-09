@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.9" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Greenlight.Admin.Application\Greenlight.Admin.Application.csproj" />
+    <ProjectReference Include="..\Greenlight.Admin.Persistence\Greenlight.Admin.Persistence.csproj" />
+    <ProjectReference Include="..\Greenlight.Admin.Shared\Greenlight.Admin.Shared.csproj" />
+    <ProjectReference Include="..\Greenlight.Admin.Domain\Greenlight.Admin.Domain.csproj" />
+    <ProjectReference Include="..\Greenlight.Admin.Web\Greenlight.Admin.Web.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,97 @@
+@model NotificationsViewModel
+@{ ViewData["Title"] = "Notifications"; }
+<div class="mb-4">
+    <h1 class="gl-page-title h3">Notifications</h1>
+    <p class="gl-subtitle">Send a push notification to everyone, one couple or group, or one person. People with notifications turned off won't get it.</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <form class="gl-card vstack gap-3" asp-action="Send" method="post" id="compose" data-ask="Send this notification now?">
+            <div>
+                <label class="form-label">Who gets it</label>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="audienceType" id="aAll" value="all" checked><label class="btn btn-outline-light" for="aAll"><i class="bi bi-globe me-1"></i> Everyone</label>
+                    <input type="radio" class="btn-check" name="audienceType" id="aGroup" value="group"><label class="btn btn-outline-light" for="aGroup"><i class="bi bi-people me-1"></i> A couple / group</label>
+                    <input type="radio" class="btn-check" name="audienceType" id="aUser" value="user"><label class="btn btn-outline-light" for="aUser"><i class="bi bi-person me-1"></i> One person</label>
+                </div>
+            </div>
+            <select class="form-select d-none" id="pickGroup">
+                <option value="">Choose a couple or group…</option>
+                @foreach (var g in Model.Groups.OrderBy(g => g.Title)) { <option value="@g.Id">@g.Title (@(g.Type == "couple" ? "couple" : $"{g.MemberCount} members"))</option> }
+            </select>
+            <select class="form-select d-none" id="pickUser">
+                <option value="">Choose a person…</option>
+                @foreach (var u in Model.Users.OrderBy(u => u.DisplayName)) { <option value="@u.Uid">@u.DisplayName (@u.Email)</option> }
+            </select>
+            <input type="hidden" name="audienceId" id="audienceId" />
+
+            <div><label class="form-label">Title</label><input class="form-control" name="title" id="nTitle" maxlength="80" required placeholder="New in Greenlight 🎉" /></div>
+            <div><label class="form-label">Message</label><textarea class="form-control" name="body" id="nBody" rows="3" maxlength="240" required placeholder="Plan your date nights with picture cards and share them in one tap."></textarea>
+                <div class="form-text"><span id="bodyCount">0</span>/240</div></div>
+            <div><label class="form-label">Opens</label>
+                <select class="form-select" name="link">
+                    <option value="greenlight://home">Home</option>
+                    <option value="greenlight://partner/watch">Partner's Watch likes</option>
+                    <option value="greenlight://partner/restaurant">Partner's Eat likes</option>
+                    <option value="greenlight://partner/activity">Partner's Do likes</option>
+                </select></div>
+
+            <div class="d-flex align-items-center gap-3 p-3 rounded-4" style="background:var(--gl-zinc-high)">
+                <i class="bi bi-person-check fs-4 text-success"></i>
+                <div class="flex-grow-1 small" id="reach"><span class="skeleton d-inline-block" style="width:180px;height:14px"></span></div>
+            </div>
+            <div class="d-flex justify-content-end"><button class="btn btn-primary" type="submit"><i class="bi bi-send me-1"></i> Send notification</button></div>
+        </form>
+    </div>
+    <div class="col-lg-5">
+        <div class="gl-phone"><div class="screen">
+            <div class="clock" id="clock">19:30</div>
+            <div class="gl-notif">
+                <div class="app"><span class="ic"><i class="bi bi-check-lg"></i></span> Greenlight · now</div>
+                <div class="fw-semibold" id="pTitle">New in Greenlight 🎉</div>
+                <div class="small" id="pBody" style="color:#D1D5DB">Plan your date nights with picture cards and share them in one tap.</div>
+            </div>
+        </div></div>
+        <p class="small text-muted text-center mt-3">Delivered on the "Announcements" channel, so people can mute it on their phone.</p>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+    const form = document.getElementById("compose"), idInput = document.getElementById("audienceId");
+    const pickGroup = document.getElementById("pickGroup"), pickUser = document.getElementById("pickUser");
+    const t = document.getElementById("nTitle"), b = document.getElementById("nBody");
+    const type = () => form.audienceType.value;
+    const clock = () => document.getElementById("clock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    clock(); setInterval(clock, 30000);
+
+    function preview() {
+        document.getElementById("pTitle").textContent = t.value || t.placeholder;
+        document.getElementById("pBody").textContent = b.value || b.placeholder;
+        document.getElementById("bodyCount").textContent = b.value.length;
+    }
+    t.addEventListener("input", preview); b.addEventListener("input", preview);
+
+    let timer;
+    async function reach() {
+        const ty = type();
+        pickGroup.classList.toggle("d-none", ty !== "group"); pickUser.classList.toggle("d-none", ty !== "user");
+        idInput.value = ty === "group" ? pickGroup.value : ty === "user" ? pickUser.value : "";
+        const el = document.getElementById("reach");
+        if (ty !== "all" && !idInput.value) { el.textContent = ty === "user" ? "Choose a person to see who'd get it." : "Choose a couple or group to see who'd get it."; return; }
+        el.innerHTML = '<span class="skeleton d-inline-block" style="width:180px;height:14px"></span>';
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+            const r = await gl.post("/Notifications/DryRun", { audienceType: ty, audienceId: idInput.value });
+            el.innerHTML = r.ok
+                ? `<b>${r.data.recipients}</b> ${r.data.recipients === 1 ? "person" : "people"} · <b>${r.data.devices}</b> phone${r.data.devices === 1 ? "" : "s"}${r.data.optedOut ? ` · <span class="text-warning">${r.data.optedOut} with notifications off</span>` : ""}`
+                : `<span class="text-danger">${gl.esc(r.message)}</span>`;
+        }, 250);
+    }
+    form.addEventListener("change", e => { if (e.target.name === "audienceType" || e.target === pickGroup || e.target === pickUser) reach(); });
+    reach(); preview();
+})();
+</script>
+}

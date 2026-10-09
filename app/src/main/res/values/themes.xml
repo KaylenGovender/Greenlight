@@ -1,0 +1,8 @@
+<resources>
+    <!-- Always dark (Greenlight), so the window never flashes white before Compose draws. -->
+    <style name="Theme.Greenlight" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

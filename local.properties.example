@@ -1,0 +1,8 @@
+# Copy to local.properties (never commit local.properties).
+sdk.dir=C:/Users/YOU/AppData/Local/Android/Sdk
+
+# TMDB API Read Access Token (v4 "Bearer" token) OR v3 API key. See README step 9.
+TMDB_API_KEY=
+
+# Google Places API (New) key, restricted to package com.greenlight.app + your SHA-1. See README step 11.
+PLACES_API_KEY=
